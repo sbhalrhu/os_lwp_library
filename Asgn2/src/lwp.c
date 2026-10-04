@@ -76,9 +76,7 @@ static thread wait_fifo_dequeue(void) {
     return oldest; //return oldest thread
 }
 
-/*thread removal helper for terminated threads for lwp_exit*/
-
-
+/*thread removal helper to remove terminated thread from all threads list*/
 
 static void thread_removal(thread removed_thread) {
     thread previous = NULL;
@@ -100,6 +98,28 @@ static void thread_removal(thread removed_thread) {
 
 /*terminated thread clearer helper for lwp_wait*/
 
+static tid_t thread_clearer(thread terminated, int *status) {
+    if (terminated == NULL) {
+        return NO_THREAD;
+    }
+    //save tid and status of terminated thread
+    tid_t tid = terminated->tid;
+    if (status != NULL) {
+        *status = terminated->status;
+    }
+    //remove thread from all threads list
+    thread_removal(terminated);
+
+    //free up stack space and heap for terminated thread
+    if (terminated->stack != NULL) {
+        munmap(terminated->stack, terminated->stacksize);
+    }
+    free(terminated);
+
+    return tid;
+}
+
+
 /*lwp functions*/
 
 extern tid_t lwp_create(lwpfun fun, void *arg){
@@ -110,6 +130,8 @@ extern tid_t lwp_create(lwpfun fun, void *arg){
     new_thread->tid = ++global_count;
     new_thread->status = LWP_LIVE;
     new_thread->state.fxsave = FPU_INIT;
+
+    /*stacksize stuff*/
     struct rlimit limit;
     size_t stacksize;   
     if (getrlimit(RLIMIT_STACK, &limit) == -1 || limit.rlim_cur == RLIM_INFINITY) { //If RLIMIT_STACK does not exist or if its value is RLIM_INFINITY
@@ -125,6 +147,8 @@ extern tid_t lwp_create(lwpfun fun, void *arg){
     if (stacksize % (size_t)page_size != 0) { //is if not a multiple
         stacksize += (size_t)page_size - (stacksize % (size_t)page_size); //round up
     }
+
+    /*allocate thread stack*/
     void * s = mmap(NULL, stacksize, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_STACK, -1, 0);
     if (s == MAP_FAILED){
         free(new_thread);
