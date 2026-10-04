@@ -12,18 +12,72 @@
 static tid_t global_count = 0;
 static thread current_thread = NULL;
 static thread all_threads_head = NULL;
-static thread terminated_head = NULL;
-static thread terminated_tail = NULL;
-static thread waiting_head = NULL;
-static thread waiting_tail = NULL;
+static thread terminated_newest = NULL;
+static thread terminated_oldest = NULL;
+static thread waiting_newest = NULL;
+static thread waiting_oldest = NULL;
 
-
+/*thread wrapper*/
 
 static void lwp_wrap(lwpfun fun, void *arg) {
     int rval;
     rval = fun(arg);
     lwp_exit(rval);
 }
+
+/*fifo queue setups*/
+
+// terminated_oldest -> oldest thread -> ... -> newest thread <- terminated_newest
+static void terminated_fifo_queue(thread queued_thread){
+    queued_thread->lib_two = NULL; //point new thread to nothing in fifo
+    if (terminated_newest == NULL) { //if queue is empty
+        terminated_oldest = queued_thread; //thread is oldest
+        terminated_newest = queued_thread; //and newest
+    } 
+    else { //if queue isn't empty
+        terminated_newest->lib_two = queued_thread; //older newest points to new thread
+        terminated_newest = queued_thread; // new thread is now the queue tail
+    }
+}
+static thread terminated_fifo_dequeue(void) {
+    if (terminated_oldest == NULL) { //if queue is empty before dequeue
+        return NULL;
+    }
+    thread oldest = terminated_oldest; //save oldest thread
+    terminated_oldest = oldest->lib_two; //next oldest is now oldest
+    if (terminated_oldest == NULL) { //if queue is now empty
+        terminated_newest = NULL; //make it so
+    }
+    oldest->lib_two = NULL; //remove thread from queue
+    return oldest; //return oldest thread
+}
+
+static void wait_fifo_queue(thread queued_thread){
+    queued_thread->lib_two = NULL; //point new thread to nothing in fifo
+    if (waiting_newest == NULL) { //if queue is empty
+        waiting_oldest = queued_thread; //thread is oldest
+        waiting_newest = queued_thread; //and newest
+    } 
+    else { //if queue isn't empty
+        waiting_newest->lib_two = queued_thread; //older newest points to new thread
+        waiting_newest = queued_thread; // new thread is now the queue tail
+    }
+}
+static thread wait_fifo_dequeue(void) {
+    if (waiting_oldest == NULL) { //if queue is empty before dequeue
+        return NULL;
+    }
+    thread oldest = waiting_oldest; //save oldest thread
+    waiting_oldest = oldest->lib_two; //next oldest is now oldest
+    if (waiting_oldest == NULL) { //if queue is now empty
+        waiting_newest = NULL; //make it so
+    }
+    oldest->lib_two = NULL; //remove thread from queue
+    return oldest; //return oldest thread
+}
+
+/*thread removal helper for terminated threads for lwp_exit*/
+
 
 
 static void thread_removal(thread removed_thread) {
@@ -43,6 +97,10 @@ static void thread_removal(thread removed_thread) {
         current = current->lib_one;
     }
 }
+
+/*terminated thread clearer helper for lwp_wait*/
+
+/*lwp functions*/
 
 extern tid_t lwp_create(lwpfun fun, void *arg){
     thread new_thread = calloc(1, sizeof *new_thread);
