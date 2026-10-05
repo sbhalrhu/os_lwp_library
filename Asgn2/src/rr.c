@@ -76,12 +76,16 @@ void rr_remove(thread victim) {
   }
 }
 
-thread rr_next(void) {
-  return RR.next();
+thread rr_next(void) { /*assuming this executes current*/
+  if (tail == NULL) {
+    return NULL;
+  }
+  tail = tail->next;
+  return tail;
 }
 
 int rr_qlen(void) {
-  return RR.qlen();
+  return ready_threads;
 }
 
 
