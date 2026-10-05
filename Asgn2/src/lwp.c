@@ -7,6 +7,7 @@
 #include <sys/time.h>
 #include <sys/mman.h>
 #include "lwp.h"
+#include "rr.h"
 #include <sys/resource.h>
 
 #define TERMINATED 4 /*status indicator common to lwp.c and rr.h*/
@@ -18,6 +19,7 @@ static thread terminated_newest = NULL;
 static thread terminated_oldest = NULL;
 static thread waiting_newest = NULL;
 static thread waiting_oldest = NULL;
+static scheduler current_scheduler = &RR;
 
 /*thread wrapper*/
 
@@ -189,7 +191,19 @@ extern tid_t lwp_create(lwpfun fun, void *arg){
 
 }
 extern void  lwp_exit(int status){
-    
+    thread exiting_thread = current_thread;
+    exiting_thread->status = status;
+    current_scheduler->remove(exiting_thread);
+
+    if (waiting_oldest != NULL) {
+        thread waiting_thread = wait_fifo_dequeue();
+        waiting_thread->exited = exiting_thread;
+        current_scheduler->admit(waiting_thread);
+    }
+    else {
+        terminated_fifo_queue(exiting_thread);
+    }
+    lwp_yield();
 }
 
 extern tid_t lwp_gettid(void){
@@ -202,7 +216,15 @@ extern tid_t lwp_gettid(void){
 }
 
 extern void  lwp_yield(void){
-
+    thread old_thread = current_thread;
+    thread new_thread = current_scheduler->next();
+    if (new_thread == NULL) {
+        return; /*exit with some error status*/
+    }
+    current_thread = new_thread;
+    if (old_thread != new_thread) {
+        swap_rfiles(&old_thread->state, &new_thread->state);
+    }
 }
 
 extern void  lwp_start(void){
@@ -223,15 +245,58 @@ extern void  lwp_start(void){
 }
 
 extern tid_t lwp_wait(int *status){
+    thread terminating_thread;
+    thread waiting_thread;
+    /*if reaping a terminated thread*/
+    terminating_thread = terminated_fifo_dequeue();
+    if (terminating_thread != NULL) {
+        return thread_clearer(terminating_thread, status);
+    }
+    /*if no terminated threads and no other threads to run while waiting:*/
+    if (current_scheduler->qlen() <=1 ) {
+        return NO_THREAD;
+    }
+    /*block and yield to give other threads time to run*/
+    waiting_thread = current_thread;
+    waiting_thread->exited = NULL;
 
+    current_scheduler->remove(waiting_thread);
+    wait_fifo_queue(waiting_thread);
+    lwp_yield();
+
+    /*after it is unblocked, reap the terminated thread*/
+    terminating_thread = waiting_thread->exited;
+    waiting_thread->exited = NULL;
+    return thread_clearer(terminating_thread, status);
 }
 
 extern void  lwp_set_scheduler(scheduler fun){
+    scheduler old_scheduler = current_scheduler;
+    thread t;
 
+    if (fun == NULL) {
+        fun = &RR;
+    }
+    if (fun == old_scheduler) {
+        return;
+    }
+    if (fun->init != NULL) {
+        fun->init();
+    }
+    while ((t = old_scheduler->next()) != NULL) {
+        t = old_scheduler->next();
+        old_scheduler->remove(t);
+        fun->admit(t); 
+    }
+    current_scheduler = fun;
+
+    if (old_scheduler != NULL &&old_scheduler->shutdown != NULL) {
+        old_scheduler->shutdown();
+    }
 }
 
 extern scheduler lwp_get_scheduler(void){
-
+    return current_scheduler;
 }
 
 extern thread tid2thread(tid_t tid){
