@@ -9,6 +9,8 @@
 #include "lwp.h"
 #include <sys/resource.h>
 
+#define TERMINATED 4 /*status indicator common to lwp.c and rr.h*/
+
 static tid_t global_count = 0;
 static thread current_thread = NULL;
 static thread all_threads_head = NULL;
