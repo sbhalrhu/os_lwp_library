@@ -7,24 +7,25 @@
 
 
 
-/* Tuple that describes a scheduler */
+/* Tuple that describes a scheduler 
 typedef struct scheduler {
-  void   (*init)(void);            /* initialize any structures     */
-  void   (*shutdown)(void);        /* tear down any structures      */
-  void   (*admit)(thread new);     /* add a thread to the pool      */
-  void   (*remove)(thread victim); /* remove a thread from the pool */
-  thread (*next)(void);            /* select a thread to schedule   */
-  int    (*qlen)(void);            /* number of ready threads       */
+  void   (*init)(void);             initialize any structures     
+  void   (*shutdown)(void);         tear down any structures   
+  void   (*admit)(thread new);      add a thread to the pool    
+  void   (*remove)(thread victim); remove a thread from the pool
+  thread (*next)(void);             select a thread to schedule  
+  int    (*qlen)(void);             number of ready threads      
 } *scheduler;
+ */
 
 
-/* DEFINED IN rr.h
+/* DEFINED IN rr.h */
 struct scheduler RR = {NULL,
                       NULL,
                       rr_admit,
                       rr_remove,
                       rr_next,
-                      rr_qlen}; */
+                      rr_qlen}; 
 
 
 
@@ -45,14 +46,15 @@ void rr_admit(thread new) {
 }
 
 void rr_remove(thread victim) {
-  /* should only unlink from queue, decrement ready, and clear its sched_one
-  */
+  /* should only unlink from queue, decrement ready, and clear its sched_one*/
   if (tail == NULL) {
     return;
   }
   /*check if victim is only thread in queue */
   if (tail == victim && tail->NEXT == victim) {
     tail = NULL;
+    ready_threads = 0;
+    return;
   }
   else {
     thread temp_thread = tail;
@@ -65,15 +67,15 @@ void rr_remove(thread victim) {
       if (victim == tail) {
         tail = temp_thread;
       }
-      victim->NEXT = NULL;
-      ready_threads--;
     }
     else {
       /*victim not found in queue*/
       return;
     }
-
   }
+  victim->NEXT = NULL;
+  ready_threads--;
+
 }
 
 thread rr_next(void) { /*assuming this executes current*/
@@ -89,13 +91,3 @@ int rr_qlen(void) {
 }
 
 
-/* Helper function adding removed threads to exited list.
-   Exited threads will be added to a list that is freed during shutdown.*/
-
-void rr_terminate(thread victim) {
-  if (victim == NULL) {
-    return;
-  }
-  victim->status = TERMINATED;
-  victim->NEXT = NULL;
-}
