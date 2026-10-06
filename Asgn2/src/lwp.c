@@ -218,7 +218,7 @@ extern void  lwp_yield(void){
     thread old_thread = current_thread;
     thread new_thread = current_scheduler->next();
     if (new_thread == NULL) {
-        return; /*exit with some error status*/
+        exit(LWPTERMSTAT(old_thread->status));
     }
     current_thread = new_thread;
     if (old_thread != new_thread) {
@@ -283,7 +283,7 @@ extern void  lwp_set_scheduler(scheduler fun){
         fun->init();
     }
     int old_len = old_scheduler->qlen();
-    for (int i = 0;  (t = old_scheduler->next()) != NULL && i < old_len; i++) {
+    for (int i = 0;  i < old_len && (t = old_scheduler->next()) != NULL; i++) {
         old_scheduler->remove(t);
         fun->admit(t); 
     }
