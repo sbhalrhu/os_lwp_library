@@ -10,7 +10,6 @@
 #include "rr.h"
 #include <sys/resource.h>
 
-#define TERMINATED 4 /*status indicator common to lwp.c and rr.h*/
 
 static tid_t global_count = 0;
 static thread current_thread = NULL;
@@ -178,7 +177,7 @@ extern tid_t lwp_create(lwpfun fun, void *arg){
         
         
         
-        //2. Admit it to the active scheduler
+        current_scheduler->admit(new_thread);
         return new_thread->tid;
     }
     return NO_THREAD;
@@ -192,7 +191,7 @@ extern tid_t lwp_create(lwpfun fun, void *arg){
 }
 extern void  lwp_exit(int status){
     thread exiting_thread = current_thread;
-    exiting_thread->status = status;
+    exiting_thread->status = MKTERMSTAT(LWP_TERM, status);
     current_scheduler->remove(exiting_thread);
 
     if (waiting_oldest != NULL) {
@@ -239,7 +238,7 @@ extern void  lwp_start(void){
     original_thread->lib_one = all_threads_head;
     all_threads_head = original_thread;
     current_thread = original_thread;
-    //admit to scheduler
+    current_scheduler->admit(original_thread);
     lwp_yield();
     
 }
@@ -283,8 +282,8 @@ extern void  lwp_set_scheduler(scheduler fun){
     if (fun->init != NULL) {
         fun->init();
     }
-    while ((t = old_scheduler->next()) != NULL) {
-        t = old_scheduler->next();
+    int old_len = old_scheduler->qlen();
+    for (int i = 0;  (t = old_scheduler->next()) != NULL && i < old_len; i++) {
         old_scheduler->remove(t);
         fun->admit(t); 
     }
