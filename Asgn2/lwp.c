@@ -162,10 +162,21 @@ extern tid_t lwp_create(lwpfun fun, void *arg){
         new_thread->stacksize = stacksize;
         /*fun stuff*/
         unsigned long *top = new_thread->stack + (stacksize / sizeof(unsigned long)); //start at the high end
+
+        //leave
+            //movq %rbp,%rsp    
+                //%rsp points to frame[0]
+            //popq %rbp
+                //loads frame[0] into %rbp
+                //%rsp advances to &frame[1]
+        //ret
+            //popq %rip
+                //address in frame[1] becomes the instruction pointer, so execution begins in lwp_wrap; %rsp advances to &frame[2]
+
         unsigned long *frame = top - 3; //pretend there was a context switch before
         frame[0] = (unsigned long)0; //no previous frame for rbp
         frame[1] = (unsigned long)lwp_wrap; //return address for swap_rfiles
-        frame[2] = (unsigned long)0; //return address for lwp_wrap (nothing at start)
+        frame[2] = (unsigned long)0;
         new_thread->state.rbp = (unsigned long)frame;
         new_thread->state.rsp = (unsigned long)frame;
         new_thread->state.rdi = (unsigned long)fun;
@@ -173,9 +184,6 @@ extern tid_t lwp_create(lwpfun fun, void *arg){
         
         new_thread->lib_one = all_threads_head; //add last created thread to front of list
         all_threads_head = new_thread; //update next thread head with currently created one
-        
-        
-        
         
         current_scheduler->admit(new_thread);
         return new_thread->tid;
