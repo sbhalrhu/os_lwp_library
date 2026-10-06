@@ -2,7 +2,7 @@
 #include "rr.h"
 #include <stdlib.h>
 
-#define next sched_one
+#define NEXT sched_one 
 
 
 
@@ -28,45 +28,45 @@ struct scheduler RR = {NULL,
 
 
 
-static thread tail;
-static thread exit_queue;
+static thread tail = NULL;
 static int ready_threads = 0;
                         
 void rr_admit(thread new) {
   if (tail == NULL) {
     tail = new;
-    new->next = new;
+    new->NEXT = new;
   }
   else {
-    new->next = tail->next;
-    tail->next = new;
+    new->NEXT = tail->NEXT;
+    tail->NEXT = new;
     tail = new;
   }
-  tail->exited = exit_queue;
   ready_threads++;
 }
 
 void rr_remove(thread victim) {
+  /* should only unlink from queue, decrement ready, and clear its sched_one
+  */
   if (tail == NULL) {
     return;
   }
   /*check if victim is only thread in queue */
-  if (tail == victim && tail->next == victim) {
+  if (tail == victim && tail->NEXT == victim) {
     tail = NULL;
   }
   else {
     thread temp_thread = tail;
-    while (temp_thread->next != victim && temp_thread.next != tail) {
-      temp_thread = temp_thread->next;
+    while (temp_thread->NEXT != victim && temp_thread->NEXT != tail) {
+      temp_thread = temp_thread->NEXT;
     }
-    /*here, temp_thread->next is either the victim or tail*/
-    if (temp_thread->next == victim) {
-      temp_thread->next = victim->next;
+    /*here, temp_thread->NEXT is either the victim or tail*/
+    if (temp_thread->NEXT == victim) {
+      temp_thread->NEXT = victim->NEXT;
       if (victim == tail) {
         tail = temp_thread;
       }
+      victim->NEXT = NULL;
       ready_threads--;
-      rr_terminate(victim);
     }
     else {
       /*victim not found in queue*/
@@ -80,7 +80,7 @@ thread rr_next(void) { /*assuming this executes current*/
   if (tail == NULL) {
     return NULL;
   }
-  tail = tail->next;
+  tail = tail->NEXT;
   return tail;
 }
 
@@ -97,5 +97,5 @@ void rr_terminate(thread victim) {
     return;
   }
   victim->status = TERMINATED;
-  victim->next = NULL;
+  victim->NEXT = NULL;
 }
