@@ -1,5 +1,5 @@
 
-#define next sched_one 
+#define NEXT sched_one 
 #define TERMINATED 4
 
 /*use this scheduler in lwp.c to implement round robin scheduling.*/
