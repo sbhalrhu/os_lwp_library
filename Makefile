@@ -1,55 +1,70 @@
 CC 	= gcc
+AR 	= ar
 
 CFLAGS  = -Wall -g -I .
 
 LD 	= gcc
 
-LDFLAGS  = -Wall -g 
+LDFLAGS = -Wall -g
 
 PROGS	= snakes nums hungry
 
-SNAKEOBJS  = randomsnakes.o 
-
-HUNGRYOBJS = hungrysnakes.o 
-
+SNAKEOBJS  = randomsnakes.o util.o
+HUNGRYOBJS = hungrysnakes.o util.o
 NUMOBJS    = numbersmain.o
 
-OBJS	= $(SNAKEOBJS) $(HUNGRYOBJS) $(NUMOBJS) 
+OBJS	= $(SNAKEOBJS) $(HUNGRYOBJS) $(NUMOBJS)
 
-SRCS	= randomsnakes.c numbersmain.c hungrysnakes.c
+SRCS	= lwp.c rr.c magic64.S util.c randomsnakes.c numbersmain.c hungrysnakes.c
+HDRS	= lwp.h rr.h snakes.h util.h schedulers.h fp.h
 
-HDRS	= 
+EXTRACLEAN = core $(PROGS) liblwp.a
 
-EXTRACLEAN = core $(PROGS)
+.PHONY: all demos allclean clean
 
-all: 	$(PROGS)
+all: 	liblwp.a
+
+demos: 	$(PROGS)
 
 allclean: clean
 	@rm -f $(EXTRACLEAN)
 
-clean:	
-	rm -f $(OBJS) *~ TAGS
+clean:
+	rm -f $(OBJS) lwp.o rr.o magic64.o *~ TAGS
 
-snakes: randomsnakes.o liblwp.a libsnakes.a
-	$(LD) $(LDFLAGS) -o snakes randomsnakes.o -L. -lncurses -lsnakes -lLWP
+snakes: $(SNAKEOBJS) liblwp.a libsnakes.so
+	$(LD) $(LDFLAGS) -o snakes $(SNAKEOBJS) -L. -Wl,--no-as-needed -lsnakes -lncurses -lrt -Wl,--as-needed -llwp
 
-hungry: hungrysnakes.o liblwp.a libsnakes.a
-	$(LD) $(LDFLAGS) -o hungry hungrysnakes.o -L. -lncurses -lsnakes -lLWP
+hungry: $(HUNGRYOBJS) liblwp.a libsnakes.so
+	$(LD) $(LDFLAGS) -o hungry $(HUNGRYOBJS) -L. -Wl,--no-as-needed -lsnakes -lncurses -lrt -Wl,--as-needed -llwp
 
-nums: numbersmain.o liblwp.a 
-	$(LD) $(LDFLAGS) -o nums numbersmain.o -L. -lLWP
+nums: $(NUMOBJS) liblwp.a
+	$(LD) $(LDFLAGS) -o nums $(NUMOBJS) -L. -llwp
 
-hungrysnakes.o: lwp.h snakes.h
+hungrysnakes.o: hungrysnakes.c lwp.h snakes.h util.h
+	$(CC) $(CFLAGS) -c hungrysnakes.c
 
-randomsnakes.o: lwp.h snakes.h
+randomsnakes.o: randomsnakes.c lwp.h snakes.h util.h
+	$(CC) $(CFLAGS) -c randomsnakes.c
 
-numbermain.o: lwp.h
+numbersmain.o: numbersmain.c lwp.h
+	$(CC) $(CFLAGS) -c numbersmain.c
 
-liblwp.a: lwp.c rr.c util.c
-	gcc -c rr.c util.c lwp.c magic64.S 
-	ar r liblwp.a util.o lwp.o rr.o magic64.o
-	rm lwp.o
+util.o: util.c lwp.h snakes.h util.h schedulers.h
+	$(CC) $(CFLAGS) -c util.c
 
-submission: lwp.c rr.c util.c Makefile README
-	tar -cf project2_submission.tar lwp.c rr.c Makefile README
-	gzip project2_submission.tar
+lwp.o: lwp.c lwp.h rr.h fp.h
+	$(CC) $(CFLAGS) -c lwp.c
+
+rr.o: rr.c lwp.h rr.h
+	$(CC) $(CFLAGS) -c rr.c
+
+magic64.o: magic64.S
+	$(CC) -c magic64.S
+
+liblwp.a: lwp.o rr.o magic64.o
+	$(AR) rcs liblwp.a lwp.o rr.o magic64.o
+
+submission: $(SRCS) $(HDRS) Makefile README.txt
+	tar -cf project2_submission.tar $(SRCS) $(HDRS) Makefile README.txt
+	gzip -f project2_submission.tar
