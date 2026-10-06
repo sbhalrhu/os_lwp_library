@@ -3,9 +3,10 @@
 #define TERMINATED 4
 
 /*use this scheduler in lwp.c to implement round robin scheduling.*/
-extern struct scheduler RR = {NULL,
-                              NULL,
-                              rr_admit,
-                              rr_remove,
-                              rr_next,
-                              rr_qlen};
+
+void rr_admit(thread new);
+void rr_remove(thread victim);
+thread rr_next(void);
+int rr_qlen(void);
+
+extern struct scheduler RR;

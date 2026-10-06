@@ -52,6 +52,7 @@ void rr_remove(thread victim) {
   }
   /*check if victim is only thread in queue */
   if (tail == victim && tail->NEXT == victim) {
+    victim->NEXT = NULL;
     tail = NULL;
     ready_threads = 0;
     return;
