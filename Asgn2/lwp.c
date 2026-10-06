@@ -42,6 +42,7 @@ static void terminated_fifo_queue(thread queued_thread){
         terminated_newest = queued_thread; // new thread is now the queue tail
     }
 }
+
 static thread terminated_fifo_dequeue(void) {
     if (terminated_oldest == NULL) { //if queue is empty before dequeue
         return NULL;
@@ -66,6 +67,7 @@ static void wait_fifo_queue(thread queued_thread){
         waiting_newest = queued_thread; // new thread is now the queue tail
     }
 }
+
 static thread wait_fifo_dequeue(void) {
     if (waiting_oldest == NULL) { //if queue is empty before dequeue
         return NULL;
@@ -189,14 +191,8 @@ extern tid_t lwp_create(lwpfun fun, void *arg){
         return new_thread->tid;
     }
     return NO_THREAD;
-
-        
-    
-    
-
-
-
 }
+
 extern void  lwp_exit(int status){
     thread exiting_thread = current_thread;
     exiting_thread->status = MKTERMSTAT(LWP_TERM, status);
