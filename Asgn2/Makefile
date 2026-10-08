@@ -24,11 +24,8 @@ EXTRACLEAN = core $(PROGS)
 
 all: 	$(PROGS)
 
-allclean: clean
-	@rm -f $(EXTRACLEAN)
-
-clean:	
-	rm -f $(OBJS) *~ TAGS
+clean:
+	rm -f $(OBJS) lwp.o rr.o magic64.o liblwp.a $(PROGS) *~ TAGS
 
 snakes: $(SNAKEOBJS) liblwp.a libsnakes.a
 	$(LD) $(LDFLAGS) -o snakes $(SNAKEOBJS) -L. -llwp -lsnakes -lncurses -lrt
